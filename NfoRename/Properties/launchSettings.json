@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "NfoRename": {
+      "commandName": "Project"
+    },
+    "check TNG": {
+      "commandName": "Project",
+      "commandLineArgs": "check \"\\\\storage\\video\\TV-Shows (en)\\Star Trek - The Next Generation\""
+    },
+    "check TV": {
+      "commandName": "Project",
+      "commandLineArgs": "check \"\\\\storage\\video\\TV-Shows (en)\""
+    },
+    "check American Dad": {
+      "commandName": "Project",
+      "commandLineArgs": "check \"\\\\storage\\video\\TV-Shows (en)\\American Dad\""
+    }
+  }
+}
