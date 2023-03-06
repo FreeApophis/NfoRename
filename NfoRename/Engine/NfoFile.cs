@@ -17,35 +17,38 @@ internal static class NfoFile
     private const string EpisodeTag = "episode";
     private const string EpisodeNumberEnd = "episodenumberend";
 
+    private const string IgnoreFile = ".ignore";
+    private const string AnyFile = "*";
+    private const string AnyNfoFile = "*.nfo\"";
+    private const string SeasonNfoFile = "season.nfo";
+    private const string TvShowNfoFile = "tvshow.nfo";
+
     public static IEnumerable<Either<Error, Medium>> Find(string searchPath, Option<Medium.Show> currentShow = default, Option<Medium.Season> currentSeason = default)
-    {
-        if (File.Exists(Path.Combine(searchPath, ".ignore")))
-        {
-            yield break;
-        }
+        => File.Exists(Path.Combine(searchPath, IgnoreFile))
+            ? Enumerable.Empty<Either<Error, Medium>>()
+            : FindInternal(searchPath, currentShow.OrElse(ShowOrNone(searchPath, currentShow, currentSeason)), currentSeason.OrElse(SeasonOrNone(searchPath, currentShow, currentSeason)));
 
-        currentShow = currentShow.OrElse(ShowOrNone(searchPath, currentShow, currentSeason));
-        currentSeason = currentSeason.OrElse(SeasonOrNone(searchPath, currentShow, currentSeason));
 
-        foreach (var nfoPath in Directory.EnumerateFiles(searchPath, "*.nfo", SearchOption.TopDirectoryOnly))
-        {
-            yield return ReadNfoFile(nfoPath, currentShow, currentSeason);
-        }
+    private static IEnumerable<Either<Error, Medium>> FindInternal(string searchPath, Option<Medium.Show> currentShow, Option<Medium.Season> currentSeason)
+        => Enumerable.Empty<Either<Error, Medium>>()
+            .Concat(FindNfoFile(searchPath, currentShow, currentSeason))
+            .Concat(FindFolder(searchPath, currentShow, currentSeason));
 
-        foreach (var media in Directory.EnumerateDirectories(searchPath, "*", SearchOption.TopDirectoryOnly).SelectMany(directory => Find(directory, currentShow, currentSeason)))
-        {
-            yield return media;
-        }
+    private static IEnumerable<Either<Error, Medium>> FindFolder(string searchPath, Option<Medium.Show> currentShow, Option<Medium.Season> currentSeason)
+        => Directory.EnumerateDirectories(searchPath, AnyFile, SearchOption.TopDirectoryOnly)
+            .SelectMany(directory => Find(directory, currentShow, currentSeason));
 
-    }
+    private static IEnumerable<Either<Error, Medium>> FindNfoFile(string searchPath, Option<Medium.Show> currentShow, Option<Medium.Season> currentSeason)
+        => Directory.EnumerateFiles(searchPath, AnyNfoFile, SearchOption.TopDirectoryOnly)
+            .Select(nfoPath => ReadNfoFile(nfoPath, currentShow, currentSeason));
 
     private static Func<Option<Medium.Season>> SeasonOrNone(string directory, Option<Medium.Show> currentShow, Option<Medium.Season> currentSeason)
         => ()
-            => ReadNfoFile(Path.Combine(directory, "season.nfo"), currentShow, currentSeason).RightOrNone().SelectMany(medium => medium as Medium.Season ?? Option<Medium.Season>.None);
+            => ReadNfoFile(Path.Combine(directory, SeasonNfoFile), currentShow, currentSeason).RightOrNone().SelectMany(medium => medium as Medium.Season ?? Option<Medium.Season>.None);
 
     private static Func<Option<Medium.Show>> ShowOrNone(string directory, Option<Medium.Show> currentShow, Option<Medium.Season> currentSeason)
         => ()
-            => ReadNfoFile(Path.Combine(directory, "tvshow.nfo"), currentShow, currentSeason).RightOrNone().SelectMany(medium => medium as Medium.Show ?? Option<Medium.Show>.None);
+            => ReadNfoFile(Path.Combine(directory, TvShowNfoFile), currentShow, currentSeason).RightOrNone().SelectMany(medium => medium as Medium.Show ?? Option<Medium.Show>.None);
 
     private static Either<Error, Medium> ReadNfoFile(string nfoPath, Option<Medium.Show> show, Option<Medium.Season> season)
         => from xml in ToXmlDocument(nfoPath)
